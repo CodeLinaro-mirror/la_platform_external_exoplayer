@@ -15,6 +15,8 @@
  */
 package com.google.android.exoplayer.demo;
 
+import java.io.File;
+
 import com.google.android.exoplayer.MediaCodecUtil;
 import com.google.android.exoplayer.MediaCodecUtil.DecoderQueryException;
 import com.google.android.exoplayer.demo.Samples.Sample;
@@ -25,10 +27,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.MimeTypeMap;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ArrayAdapter;
@@ -41,6 +45,8 @@ import android.widget.TextView;
 public class SampleChooserActivity extends Activity {
 
   private static final String TAG = "SampleChooserActivity";
+  private static final String mVideoDir = Environment
+			.getExternalStorageDirectory().getAbsolutePath() + "/";
 
   @Override
   public void onCreate(Bundle savedInstanceState) {
@@ -60,6 +66,20 @@ public class SampleChooserActivity extends Activity {
     sampleAdapter.addAll((Object[]) Samples.HLS);
     sampleAdapter.add(new Header("Misc"));
     sampleAdapter.addAll((Object[]) Samples.MISC);
+    sampleAdapter.add(new ListItem("Local Videos"));
+
+    File[] files = new File(mVideoDir).listFiles();
+    if (files != null) {
+        for (File file : files) {
+            if (file.isFile()) {
+                String mimeType = getMimeType(file.getAbsolutePath());
+                if (mimeType != null && mimeType.contains("video")) {
+                    sampleAdapter.add(new VideoListItem(file.getName(),
+                                Uri.parse(file.getAbsolutePath())));
+                }
+            }
+        }
+    }
 
     // Add WebM samples if the device has a VP9 decoder.
     try {
@@ -77,10 +97,36 @@ public class SampleChooserActivity extends Activity {
       public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
         Object item = sampleAdapter.getItem(position);
         if (item instanceof Sample) {
-          onSampleSelected((Sample) item);
+            onSampleSelected((Sample) item);
+        }
+        if (item instanceof VideoListItem) {
+            onVideoSelected((VideoListItem) item);
         }
       }
     });
+  }
+
+  private String getMimeType(String url) {
+      String type = null;
+      String extension = MimeTypeMap.getFileExtensionFromUrl(url);
+
+      if (extension != null) {
+          MimeTypeMap mime = MimeTypeMap.getSingleton();
+          type = mime.getMimeTypeFromExtension(extension);
+      }
+
+      if (type == null) {
+          if (extension.equals("divx")) {
+              return "video/divx";
+          }
+      }
+      return type;
+  }
+
+  private void onVideoSelected(VideoListItem video) {
+      Intent mpdIntent = new Intent(this, PlayerActivity.class);
+      mpdIntent.setData(video.getUri());
+      startActivity(mpdIntent);
   }
 
   private void onSampleSelected(Sample sample) {
@@ -111,14 +157,19 @@ public class SampleChooserActivity extends Activity {
         name = ((Sample) item).name;
       } else if (item instanceof Header) {
         name = ((Header) item).name;
+      } else if (item instanceof VideoListItem) {
+        name = ((VideoListItem) item).getName();
+      } else if (item instanceof ListItem) {
+        name = ((ListItem) item).getName();
       }
+
       ((TextView) view).setText(name);
       return view;
     }
 
     @Override
     public int getItemViewType(int position) {
-      return (getItem(position) instanceof Sample) ? 1 : 0;
+      return ((getItem(position) instanceof Sample) || (getItem(position) instanceof VideoListItem)) ? 1 : 0;
     }
 
     @Override
@@ -138,4 +189,41 @@ public class SampleChooserActivity extends Activity {
 
   }
 
+	/** generic class corresponding to a TextView */
+    private	class ListItem {
+		static final int VIEW_ID = 0;
+		private String name;
+
+		public ListItem(String name) {
+			this.name = name;
+		}
+
+		public String getName() {
+			return name;
+		}
+
+		public int getViewId() {
+			return VIEW_ID;
+		}
+	}
+
+	/** class for individual TextViews to list videos */
+	private class VideoListItem extends ListItem {
+		static final int VIEW_ID = 1;
+		private Uri uri;
+
+		public VideoListItem(String name, Uri uri) {
+			super(name);
+			this.uri = uri;
+		}
+
+		public Uri getUri() {
+			return uri;
+		}
+
+		@Override
+		public int getViewId() {
+			return VIEW_ID;
+		}
+	}
 }
