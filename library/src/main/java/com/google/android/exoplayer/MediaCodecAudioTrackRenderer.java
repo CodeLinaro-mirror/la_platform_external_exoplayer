@@ -15,13 +15,13 @@
  */
 package com.google.android.exoplayer;
 
+import com.google.android.exoplayer.MediaCodecUtil.DecoderQueryException;
 import com.google.android.exoplayer.audio.AudioTrack;
 import com.google.android.exoplayer.drm.DrmSessionManager;
 import com.google.android.exoplayer.util.MimeTypes;
 
 import android.annotation.TargetApi;
 import android.media.MediaCodec;
-import android.media.MediaFormat;
 import android.media.audiofx.Virtualizer;
 import android.os.Handler;
 
@@ -31,7 +31,7 @@ import java.nio.ByteBuffer;
  * Decodes and renders audio using {@link MediaCodec} and {@link android.media.AudioTrack}.
  */
 @TargetApi(16)
-public class MediaCodecAudioTrackRenderer extends MediaCodecTrackRenderer {
+public class MediaCodecAudioTrackRenderer extends MediaCodecTrackRenderer implements MediaClock {
 
   /**
    * Interface definition for a callback to be notified of {@link MediaCodecAudioTrackRenderer}
@@ -62,11 +62,17 @@ public class MediaCodecAudioTrackRenderer extends MediaCodecTrackRenderer {
    */
   public static final int MSG_SET_VOLUME = 1;
 
+  /**
+   * The name for the raw (passthrough) decoder OMX component.
+   */
+  private static final String RAW_DECODER_NAME = "OMX.google.raw.decoder";
+
   private final EventListener eventListener;
   private final AudioTrack audioTrack;
 
   private int audioSessionId;
   private long currentPositionUs;
+  private boolean allowPositionDiscontinuity;
 
   /**
    * @param source The upstream source from which the renderer obtains samples.
@@ -123,8 +129,31 @@ public class MediaCodecAudioTrackRenderer extends MediaCodecTrackRenderer {
   }
 
   @Override
-  protected boolean isTimeSource() {
-    return true;
+  protected DecoderInfo getDecoderInfo(String mimeType, boolean requiresSecureDecoder)
+      throws DecoderQueryException {
+    if (MimeTypes.isPassthroughAudio(mimeType)) {
+      return new DecoderInfo(RAW_DECODER_NAME, true);
+    }
+    return super.getDecoderInfo(mimeType, requiresSecureDecoder);
+  }
+
+  @Override
+  protected void configureCodec(MediaCodec codec, String codecName,
+      android.media.MediaFormat format, android.media.MediaCrypto crypto) {
+    if (RAW_DECODER_NAME.equals(codecName)) {
+      // Override the MIME type used to configure the codec if we are using a passthrough decoder.
+      String mimeType = format.getString(android.media.MediaFormat.KEY_MIME);
+      format.setString(android.media.MediaFormat.KEY_MIME, MimeTypes.AUDIO_RAW);
+      codec.configure(format, null, crypto, 0);
+      format.setString(android.media.MediaFormat.KEY_MIME, mimeType);
+    } else {
+      codec.configure(format, null, crypto, 0);
+    }
+  }
+
+  @Override
+  protected MediaClock getMediaClock() {
+    return this;
   }
 
   @Override
@@ -135,12 +164,17 @@ public class MediaCodecAudioTrackRenderer extends MediaCodecTrackRenderer {
   @Override
   protected void onEnabled(long positionUs, boolean joining) {
     super.onEnabled(positionUs, joining);
-    currentPositionUs = Long.MIN_VALUE;
+    seekToInternal(positionUs);
   }
 
   @Override
-  protected void onOutputFormatChanged(MediaFormat format) {
-    audioTrack.reconfigure(format);
+  protected void onOutputFormatChanged(MediaFormat inputFormat,
+      android.media.MediaFormat outputFormat) {
+    if (MimeTypes.isPassthroughAudio(inputFormat.mimeType)) {
+      audioTrack.reconfigure(inputFormat.getFrameworkMediaFormatV16());
+    } else {
+      audioTrack.reconfigure(outputFormat);
+    }
   }
 
   /**
@@ -186,14 +220,12 @@ public class MediaCodecAudioTrackRenderer extends MediaCodecTrackRenderer {
   }
 
   @Override
-  protected long getCurrentPositionUs() {
-    long audioTrackCurrentPositionUs = audioTrack.getCurrentPositionUs(isEnded());
-    if (audioTrackCurrentPositionUs == AudioTrack.CURRENT_POSITION_NOT_SET) {
-      // Use the super class position before audio playback starts.
-      currentPositionUs = Math.max(currentPositionUs, super.getCurrentPositionUs());
-    } else {
-      // Make sure we don't ever report time moving backwards.
-      currentPositionUs = Math.max(currentPositionUs, audioTrackCurrentPositionUs);
+  public long getPositionUs() {
+    long newCurrentPositionUs = audioTrack.getCurrentPositionUs(isEnded());
+    if (newCurrentPositionUs != AudioTrack.CURRENT_POSITION_NOT_SET) {
+      currentPositionUs = allowPositionDiscontinuity ? newCurrentPositionUs
+          : Math.max(currentPositionUs, newCurrentPositionUs);
+      allowPositionDiscontinuity = false;
     }
     return currentPositionUs;
   }
@@ -202,7 +234,7 @@ public class MediaCodecAudioTrackRenderer extends MediaCodecTrackRenderer {
   protected void onDisabled() {
     audioSessionId = AudioTrack.SESSION_ID_NOT_SET;
     try {
-      audioTrack.reset();
+      audioTrack.release();
     } finally {
       super.onDisabled();
     }
@@ -211,9 +243,14 @@ public class MediaCodecAudioTrackRenderer extends MediaCodecTrackRenderer {
   @Override
   protected void seekTo(long positionUs) throws ExoPlaybackException {
     super.seekTo(positionUs);
+    seekToInternal(positionUs);
+  }
+
+  private void seekToInternal(long positionUs) {
     // TODO: Try and re-use the same AudioTrack instance once [Internal: b/7941810] is fixed.
     audioTrack.reset();
-    currentPositionUs = Long.MIN_VALUE;
+    currentPositionUs = positionUs;
+    allowPositionDiscontinuity = true;
   }
 
   @Override
@@ -257,7 +294,8 @@ public class MediaCodecAudioTrackRenderer extends MediaCodecTrackRenderer {
 
     // If we are out of sync, allow currentPositionUs to jump backwards.
     if ((handleBufferResult & AudioTrack.RESULT_POSITION_DISCONTINUITY) != 0) {
-      currentPositionUs = Long.MIN_VALUE;
+      handleDiscontinuity();
+      allowPositionDiscontinuity = true;
     }
 
     // Release the buffer if it was consumed.
@@ -268,6 +306,10 @@ public class MediaCodecAudioTrackRenderer extends MediaCodecTrackRenderer {
     }
 
     return false;
+  }
+
+  protected void handleDiscontinuity() {
+    // Do nothing
   }
 
   @Override
@@ -281,7 +323,7 @@ public class MediaCodecAudioTrackRenderer extends MediaCodecTrackRenderer {
 
   private void notifyAudioTrackInitializationError(final AudioTrack.InitializationException e) {
     if (eventHandler != null && eventListener != null) {
-      eventHandler.post(new Runnable()  {
+      eventHandler.post(new Runnable() {
         @Override
         public void run() {
           eventListener.onAudioTrackInitializationError(e);
