@@ -124,8 +124,10 @@ public class SampleChooserActivity extends Activity {
   }
 
   private void onVideoSelected(VideoListItem video) {
-      Intent mpdIntent = new Intent(this, PlayerActivity.class);
-      mpdIntent.setData(video.getUri());
+      Intent mpdIntent = new Intent(this, PlayerActivity.class)
+          .setData(video.getUri())
+          .putExtra(PlayerActivity.CONTENT_ID_EXTRA, "")
+          .putExtra(PlayerActivity.CONTENT_TYPE_EXTRA, PlayerActivity.TYPE_OTHER);
       startActivity(mpdIntent);
   }
 
