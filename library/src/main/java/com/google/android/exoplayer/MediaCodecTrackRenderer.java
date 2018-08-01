@@ -1,4 +1,7 @@
 /*
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Not a Contribution.
+ *
  * Copyright (C) 2014 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,6 +32,7 @@ import android.media.MediaCodec.CryptoException;
 import android.media.MediaCrypto;
 import android.os.Handler;
 import android.os.SystemClock;
+import android.os.Bundle;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -191,6 +195,8 @@ public abstract class MediaCodecTrackRenderer extends SampleSourceTrackRenderer 
    * of stream signal to indicate that it has output any remaining buffers before we release it.
    */
   private static final int REINITIALIZATION_STATE_WAIT_END_OF_STREAM = 2;
+
+  public static final int MSG_CODEC_SET_PARAMS = 20;
 
   public final CodecCounters codecCounters;
 
@@ -403,6 +409,25 @@ public abstract class MediaCodecTrackRenderer extends SampleSourceTrackRenderer 
         super.onDisabled();
       }
     }
+  }
+
+  @Override
+  public void handleMessage(int messageType, Object message) throws ExoPlaybackException {
+    if (messageType == MSG_CODEC_SET_PARAMS) {
+      codecSetParams((VppMessageFormat)message);
+    } else {
+      super.handleMessage(messageType, message);
+    }
+  }
+
+  void codecSetParams(VppMessageFormat message) {
+    Bundle params = new Bundle();
+    params.putString(VppMessageFormat.KEY_VPP_MODE, message.vppMode);
+    params.putString(VppMessageFormat.KEY_AIE_MODE, message.aieMode);
+    params.putString(VppMessageFormat.KEY_AIE_HUE_MODE, message.hueMode);
+    params.putInt(VppMessageFormat.KEY_AIE_CADE_LEVEL, message.cadeLevel);
+    params.putInt(VppMessageFormat.KEY_AIE_LTM_LEVEL, message.ltmLevel);
+    codec.setParameters(params);
   }
 
   protected void releaseCodec() {

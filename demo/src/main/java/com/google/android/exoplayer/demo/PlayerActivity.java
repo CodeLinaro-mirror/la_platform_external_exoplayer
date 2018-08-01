@@ -1,4 +1,7 @@
 /*
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Not a Contribution.
+ *
  * Copyright (C) 2014 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,6 +24,7 @@ import com.google.android.exoplayer.ExoPlayer;
 import com.google.android.exoplayer.MediaCodecTrackRenderer.DecoderInitializationException;
 import com.google.android.exoplayer.MediaCodecUtil.DecoderQueryException;
 import com.google.android.exoplayer.MediaFormat;
+import com.google.android.exoplayer.VppMessageFormat;
 import com.google.android.exoplayer.audio.AudioCapabilities;
 import com.google.android.exoplayer.audio.AudioCapabilitiesReceiver;
 import com.google.android.exoplayer.demo.player.DashRendererBuilder;
@@ -66,6 +70,7 @@ import android.widget.Button;
 import android.widget.MediaController;
 import android.widget.PopupMenu;
 import android.widget.PopupMenu.OnMenuItemClickListener;
+import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -121,6 +126,8 @@ public class PlayerActivity extends Activity implements SurfaceHolder.Callback, 
   private Button audioButton;
   private Button textButton;
   private Button retryButton;
+  private Button aieButton;
+  private Button hueButton;
 
   private DemoPlayer player;
   private DebugTextViewHelper debugViewHelper;
@@ -133,6 +140,14 @@ public class PlayerActivity extends Activity implements SurfaceHolder.Callback, 
   private int contentType;
   private String contentId;
   private String provider;
+  private boolean isHueModeOn = false;
+  private boolean isAieModeAuto = false;
+
+  private String aieMode = VppMessageFormat.AIE_MODE_MANUAL;
+  private String hueMode = VppMessageFormat.HUE_MODE_OFF;
+
+  private int ltmLevel = 0;
+  private int cadeLevel = 0;
 
   private AudioCapabilitiesReceiver audioCapabilitiesReceiver;
 
@@ -184,6 +199,50 @@ public class PlayerActivity extends Activity implements SurfaceHolder.Callback, 
     videoButton = (Button) findViewById(R.id.video_controls);
     audioButton = (Button) findViewById(R.id.audio_controls);
     textButton = (Button) findViewById(R.id.text_controls);
+    aieButton = (Button) findViewById(R.id.aie_mode_controls);
+    hueButton = (Button) findViewById(R.id.hue_mode_controls);
+    final SeekBar CadeSeekBar  = (SeekBar) findViewById(R.id.CadeSeekBar);
+    CadeSeekBar.setProgress(cadeLevel);
+    final SeekBar LtmSeekBar  = (SeekBar) findViewById(R.id.LtmSeekBar);
+    LtmSeekBar.setProgress(ltmLevel);
+
+   CadeSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+       @Override
+       public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
+           cadeLevel = i;
+           VppMessageFormat vppMessage = new VppMessageFormat(VppMessageFormat.VPP_MODE_MANUAL, aieMode, hueMode, cadeLevel, ltmLevel);
+           player.sendVppMessage(vppMessage);
+       }
+
+       @Override
+       public void onStartTrackingTouch(SeekBar seekBar) {
+
+       }
+
+       @Override
+       public void onStopTrackingTouch(SeekBar seekBar) {
+
+       }
+   });
+
+   LtmSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+       @Override
+       public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
+           ltmLevel = i;
+           VppMessageFormat vppMessage = new VppMessageFormat(VppMessageFormat.VPP_MODE_MANUAL, aieMode, hueMode, cadeLevel, ltmLevel);
+           player.sendVppMessage(vppMessage);
+       }
+
+       @Override
+       public void onStartTrackingTouch(SeekBar seekBar) {
+
+       }
+
+       @Override
+       public void onStopTrackingTouch(SeekBar seekBar) {
+
+       }
+   });
 
     CookieHandler currentHandler = CookieHandler.getDefault();
     if (currentHandler != defaultCookieManager) {
@@ -444,6 +503,8 @@ public class PlayerActivity extends Activity implements SurfaceHolder.Callback, 
     videoButton.setVisibility(haveTracks(DemoPlayer.TYPE_VIDEO) ? View.VISIBLE : View.GONE);
     audioButton.setVisibility(haveTracks(DemoPlayer.TYPE_AUDIO) ? View.VISIBLE : View.GONE);
     textButton.setVisibility(haveTracks(DemoPlayer.TYPE_TEXT) ? View.VISIBLE : View.GONE);
+    aieButton.setVisibility(haveTracks(DemoPlayer.TYPE_VIDEO) ? View.VISIBLE : View.GONE);
+    hueButton.setVisibility(haveTracks(DemoPlayer.TYPE_VIDEO) ? View.VISIBLE : View.GONE);
   }
 
   private boolean haveTracks(int type) {
@@ -498,6 +559,56 @@ public class PlayerActivity extends Activity implements SurfaceHolder.Callback, 
         } else {
           VerboseLogUtil.setEnableAllTags(true);
         }
+        return true;
+      }
+    });
+    popup.show();
+  }
+
+  public void showAieModePopup(View v) {
+    PopupMenu popup = new PopupMenu(this, v);
+    Menu menu = popup.getMenu();
+    menu.add(Menu.NONE, 0, Menu.NONE, R.string.HQV_MODE_MANUAL);
+    menu.add(Menu.NONE, 1, Menu.NONE, R.string.HQV_MODE_AUTO);
+    menu.setGroupCheckable(Menu.NONE, true, true);
+    menu.findItem((isAieModeAuto)? 1 : 0).setChecked(true);
+    popup.setOnMenuItemClickListener(new OnMenuItemClickListener() {
+      @Override
+      public boolean onMenuItemClick(MenuItem item) {
+        if (item.getItemId() == 0) {
+           isAieModeAuto = false;
+           aieMode = VppMessageFormat.AIE_MODE_MANUAL;
+        } else {
+           isAieModeAuto = true;
+           aieMode = VppMessageFormat.AIE_MODE_AUTO;
+        }
+        VppMessageFormat vppMessage = new VppMessageFormat(VppMessageFormat.VPP_MODE_MANUAL, aieMode, hueMode, cadeLevel, ltmLevel);
+        player.sendVppMessage(vppMessage);
+        return true;
+      }
+    });
+    popup.show();
+  }
+
+  public void showHueModePopup(View v) {
+    PopupMenu popup = new PopupMenu(this, v);
+    Menu menu = popup.getMenu();
+    menu.add(Menu.NONE, 0, Menu.NONE, R.string.HQV_HUE_MODE_OFF);
+    menu.add(Menu.NONE, 1, Menu.NONE, R.string.HQV_HUE_MODE_ON);
+    menu.setGroupCheckable(Menu.NONE, true, true);
+    menu.findItem((isHueModeOn)? 1 : 0).setChecked(true);
+    popup.setOnMenuItemClickListener(new OnMenuItemClickListener() {
+      @Override
+      public boolean onMenuItemClick(MenuItem item) {
+        if (item.getItemId() == 0) {
+           isHueModeOn = false;
+           hueMode = VppMessageFormat.HUE_MODE_OFF;
+        } else {
+           isHueModeOn = true;
+           hueMode = VppMessageFormat.HUE_MODE_ON;
+        }
+        VppMessageFormat vppMessage = new VppMessageFormat(VppMessageFormat.VPP_MODE_MANUAL, aieMode, hueMode, cadeLevel, ltmLevel);
+        player.sendVppMessage(vppMessage);
         return true;
       }
     });

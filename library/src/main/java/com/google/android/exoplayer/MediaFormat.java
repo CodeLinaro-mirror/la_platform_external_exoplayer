@@ -1,4 +1,7 @@
 /*
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Not a Contribution.
+ *
  * Copyright (C) 2014 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -252,6 +255,11 @@ public final class MediaFormat {
       maybeSetIntegerV16(format, android.media.MediaFormat.KEY_MAX_HEIGHT, maxHeight);
       maybeSetIntegerV16(format, android.media.MediaFormat.KEY_CHANNEL_COUNT, channelCount);
       maybeSetIntegerV16(format, android.media.MediaFormat.KEY_SAMPLE_RATE, sampleRate);
+      format.setString(VppMessageFormat.KEY_VPP_MODE, VppMessageFormat.VPP_MODE_MANUAL);
+      format.setString(VppMessageFormat.KEY_AIE_MODE, VppMessageFormat.AIE_MODE_MANUAL);
+      format.setString(VppMessageFormat.KEY_AIE_HUE_MODE, VppMessageFormat.HUE_MODE_OFF);
+      format.setInteger(VppMessageFormat.KEY_AIE_CADE_LEVEL, VppMessageFormat.defaultCadeLevel);
+      format.setInteger(VppMessageFormat.KEY_AIE_LTM_LEVEL, VppMessageFormat.defaultLtmLevel);
       for (int i = 0; i < initializationData.size(); i++) {
         format.setByteBuffer("csd-" + i, ByteBuffer.wrap(initializationData.get(i)));
       }

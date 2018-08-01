@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Copyright (C) 2014 The Android Open Source Project
+<!-- Copyright (c) 2018, The Linux Foundation. All rights reserved.
+     Not a Contribution.
+
+     Copyright (C) 2014 The Android Open Source Project
 
      Licensed under the Apache License, Version 2.0 (the "License");
      you may not use this file except in compliance with the License.
@@ -33,7 +36,19 @@
 
   <string name="logging_verbose">Verbose</string>
 
+  <string name="HQV_HUE_MODE_OFF">HQV_HUE_MODE_OFF</string>
+
+  <string name="HQV_HUE_MODE_ON">HQV_HUE_MODE_ON</string>
+
+  <string name="HQV_MODE_AUTO">HQV_MODE_AUTO</string>
+
+  <string name="HQV_MODE_MANUAL">HQV_MODE_MANUAL</string>
+
   <string name="retry">Retry</string>
+
+  <string name="huemode">Hue Mode</string>
+
+  <string name="aiemode">Aie Mode</string>
 
   <string name="off">[off]</string>
 

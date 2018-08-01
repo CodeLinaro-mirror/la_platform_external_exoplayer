@@ -1,4 +1,7 @@
 /*
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Not a Contribution.
+ *
  * Copyright (C) 2014 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,6 +22,7 @@ import com.google.android.exoplayer.CodecCounters;
 import com.google.android.exoplayer.DummyTrackRenderer;
 import com.google.android.exoplayer.ExoPlaybackException;
 import com.google.android.exoplayer.ExoPlayer;
+import com.google.android.exoplayer.VppMessageFormat;
 import com.google.android.exoplayer.MediaCodecAudioTrackRenderer;
 import com.google.android.exoplayer.MediaCodecTrackRenderer;
 import com.google.android.exoplayer.MediaCodecTrackRenderer.DecoderInitializationException;
@@ -334,6 +338,10 @@ public class DemoPlayer implements ExoPlayer.Listener, ChunkSampleSource.EventLi
 
   public void setPlayWhenReady(boolean playWhenReady) {
     player.setPlayWhenReady(playWhenReady);
+  }
+
+  public void sendVppMessage(VppMessageFormat vppMessage) {
+     player.sendMessage(videoRenderer, MediaCodecTrackRenderer.MSG_CODEC_SET_PARAMS, vppMessage);
   }
 
   public void seekTo(long positionMs) {
