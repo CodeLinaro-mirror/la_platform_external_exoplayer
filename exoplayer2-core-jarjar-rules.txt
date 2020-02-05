@@ -1,2 +1,0 @@
-zap org.checkerframework.**
-zap androidx.annotation.**
