@@ -15,7 +15,6 @@
  */
 package com.google.android.exoplayer2.text.cea;
 
-import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.Format;
@@ -45,6 +44,7 @@ import java.util.PriorityQueue;
   private long playbackPositionUs;
   private long queuedInputBufferCount;
 
+  @SuppressWarnings("nullness:methodref.receiver.bound.invalid")
   public CeaDecoder() {
     availableInputBuffers = new ArrayDeque<>();
     for (int i = 0; i < NUM_INPUT_BUFFERS; i++) {
@@ -52,7 +52,7 @@ import java.util.PriorityQueue;
     }
     availableOutputBuffers = new ArrayDeque<>();
     for (int i = 0; i < NUM_OUTPUT_BUFFERS; i++) {
-      availableOutputBuffers.add(new CeaOutputBuffer());
+      availableOutputBuffers.add(new CeaOutputBuffer(this::releaseOutputBuffer));
     }
     queuedInputBuffers = new PriorityQueue<>();
   }
@@ -179,13 +179,22 @@ import java.util.PriorityQueue;
    */
   protected abstract void decode(SubtitleInputBuffer inputBuffer);
 
+  @Nullable
+  protected final SubtitleOutputBuffer getAvailableOutputBuffer() {
+    return availableOutputBuffers.pollFirst();
+  }
+
+  protected final long getPositionUs() {
+    return playbackPositionUs;
+  }
+
   private static final class CeaInputBuffer extends SubtitleInputBuffer
       implements Comparable<CeaInputBuffer> {
 
     private long queuedInputBufferCount;
 
     @Override
-    public int compareTo(@NonNull CeaInputBuffer other) {
+    public int compareTo(CeaInputBuffer other) {
       if (isEndOfStream() != other.isEndOfStream()) {
         return isEndOfStream() ? 1 : -1;
       }
@@ -200,11 +209,17 @@ import java.util.PriorityQueue;
     }
   }
 
-  private final class CeaOutputBuffer extends SubtitleOutputBuffer {
+  private static final class CeaOutputBuffer extends SubtitleOutputBuffer {
+
+    private Owner<CeaOutputBuffer> owner;
+
+    public CeaOutputBuffer(Owner<CeaOutputBuffer> owner) {
+      this.owner = owner;
+    }
 
     @Override
     public final void release() {
-      releaseOutputBuffer(this);
+      owner.releaseOutputBuffer(this);
     }
   }
 }

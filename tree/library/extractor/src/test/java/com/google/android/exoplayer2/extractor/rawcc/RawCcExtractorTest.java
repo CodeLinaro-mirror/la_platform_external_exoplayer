@@ -15,33 +15,35 @@
  */
 package com.google.android.exoplayer2.extractor.rawcc;
 
-import androidx.test.ext.junit.runners.AndroidJUnit4;
 import com.google.android.exoplayer2.Format;
 import com.google.android.exoplayer2.testutil.ExtractorAsserts;
 import com.google.android.exoplayer2.util.MimeTypes;
+import java.util.List;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.robolectric.ParameterizedRobolectricTestRunner;
 
 /** Tests for {@link RawCcExtractor}. */
-@RunWith(AndroidJUnit4.class)
+@RunWith(ParameterizedRobolectricTestRunner.class)
 public final class RawCcExtractorTest {
 
+  @ParameterizedRobolectricTestRunner.Parameters(name = "{0}")
+  public static List<Object[]> params() {
+    return ExtractorAsserts.configs();
+  }
+
+  @ParameterizedRobolectricTestRunner.Parameter(0)
+  public ExtractorAsserts.Config assertionConfig;
+
   @Test
-  public void testRawCcSample() throws Exception {
+  public void rawCcSample() throws Exception {
+    Format format =
+        new Format.Builder()
+            .setSampleMimeType(MimeTypes.APPLICATION_CEA608)
+            .setCodecs("cea608")
+            .setAccessibilityChannel(1)
+            .build();
     ExtractorAsserts.assertBehavior(
-        () ->
-            new RawCcExtractor(
-                Format.createTextContainerFormat(
-                    /* id= */ null,
-                    /* label= */ null,
-                    /* containerMimeType= */ null,
-                    /* sampleMimeType= */ MimeTypes.APPLICATION_CEA608,
-                    /* codecs= */ "cea608",
-                    /* bitrate= */ Format.NO_VALUE,
-                    /* selectionFlags= */ 0,
-                    /* roleFlags= */ 0,
-                    /* language= */ null,
-                    /* accessibilityChannel= */ 1)),
-        "rawcc/sample.rawcc");
+        () -> new RawCcExtractor(format), "rawcc/sample.rawcc", assertionConfig);
   }
 }
