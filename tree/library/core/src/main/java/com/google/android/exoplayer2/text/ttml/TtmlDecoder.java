@@ -22,6 +22,7 @@ import com.google.android.exoplayer2.text.Cue;
 import com.google.android.exoplayer2.text.SimpleSubtitleDecoder;
 import com.google.android.exoplayer2.text.Subtitle;
 import com.google.android.exoplayer2.text.SubtitleDecoderException;
+import com.google.android.exoplayer2.text.span.RubySpan;
 import com.google.android.exoplayer2.util.Assertions;
 import com.google.android.exoplayer2.util.ColorParser;
 import com.google.android.exoplayer2.util.Log;
@@ -183,7 +184,7 @@ public final class TtmlDecoder extends SimpleSubtitleDecoder {
     }
   }
 
-  private FrameAndTickRate parseFrameAndTickRates(XmlPullParser xmlParser)
+  private static FrameAndTickRate parseFrameAndTickRates(XmlPullParser xmlParser)
       throws SubtitleDecoderException {
     int frameRate = DEFAULT_FRAME_RATE;
     String frameRateString = xmlParser.getAttributeValue(TTP, "frameRate");
@@ -217,8 +218,8 @@ public final class TtmlDecoder extends SimpleSubtitleDecoder {
     return new FrameAndTickRate(frameRate * frameRateMultiplier, subFrameRate, tickRate);
   }
 
-  private CellResolution parseCellResolution(XmlPullParser xmlParser, CellResolution defaultValue)
-      throws SubtitleDecoderException {
+  private static CellResolution parseCellResolution(
+      XmlPullParser xmlParser, CellResolution defaultValue) throws SubtitleDecoderException {
     String cellResolution = xmlParser.getAttributeValue(TTP, "cellResolution");
     if (cellResolution == null) {
       return defaultValue;
@@ -243,7 +244,7 @@ public final class TtmlDecoder extends SimpleSubtitleDecoder {
   }
 
   @Nullable
-  private TtsExtent parseTtsExtent(XmlPullParser xmlParser) {
+  private static TtsExtent parseTtsExtent(XmlPullParser xmlParser) {
     @Nullable
     String ttsExtent = XmlPullParserUtil.getAttributeValue(xmlParser, TtmlNode.ATTR_TTS_EXTENT);
     if (ttsExtent == null) {
@@ -265,7 +266,7 @@ public final class TtmlDecoder extends SimpleSubtitleDecoder {
     }
   }
 
-  private Map<String, TtmlStyle> parseHeader(
+  private static Map<String, TtmlStyle> parseHeader(
       XmlPullParser xmlParser,
       Map<String, TtmlStyle> globalStyles,
       CellResolution cellResolution,
@@ -300,7 +301,7 @@ public final class TtmlDecoder extends SimpleSubtitleDecoder {
     return globalStyles;
   }
 
-  private void parseMetadata(XmlPullParser xmlParser, Map<String, String> imageMap)
+  private static void parseMetadata(XmlPullParser xmlParser, Map<String, String> imageMap)
       throws IOException, XmlPullParserException {
     do {
       xmlParser.next();
@@ -323,7 +324,7 @@ public final class TtmlDecoder extends SimpleSubtitleDecoder {
    * returned.
    */
   @Nullable
-  private TtmlRegion parseRegionAttributes(
+  private static TtmlRegion parseRegionAttributes(
       XmlPullParser xmlParser, CellResolution cellResolution, @Nullable TtsExtent ttsExtent) {
     @Nullable String regionId = XmlPullParserUtil.getAttributeValue(xmlParser, TtmlNode.ATTR_ID);
     if (regionId == null) {
@@ -455,13 +456,13 @@ public final class TtmlDecoder extends SimpleSubtitleDecoder {
         /* textSize= */ regionTextHeight);
   }
 
-  private String[] parseStyleIds(String parentStyleIds) {
+  private static String[] parseStyleIds(String parentStyleIds) {
     parentStyleIds = parentStyleIds.trim();
     return parentStyleIds.isEmpty() ? new String[0] : Util.split(parentStyleIds, "\\s+");
   }
 
-  @PolyNull
-  private TtmlStyle parseStyleAttributes(XmlPullParser parser, @PolyNull TtmlStyle style) {
+  private static @PolyNull TtmlStyle parseStyleAttributes(
+      XmlPullParser parser, @PolyNull TtmlStyle style) {
     int attributeCount = parser.getAttributeCount();
     for (int i = 0; i < attributeCount; i++) {
       String attributeValue = parser.getAttributeValue(i);
@@ -524,6 +525,53 @@ public final class TtmlDecoder extends SimpleSubtitleDecoder {
               break;
           }
           break;
+        case TtmlNode.ATTR_TTS_TEXT_COMBINE:
+          switch (Util.toLowerInvariant(attributeValue)) {
+            case TtmlNode.COMBINE_NONE:
+              style = createIfNull(style).setTextCombine(false);
+              break;
+            case TtmlNode.COMBINE_ALL:
+              style = createIfNull(style).setTextCombine(true);
+              break;
+            default:
+              // ignore
+              break;
+          }
+          break;
+        case TtmlNode.ATTR_TTS_RUBY:
+          switch (Util.toLowerInvariant(attributeValue)) {
+            case TtmlNode.RUBY_CONTAINER:
+              style = createIfNull(style).setRubyType(TtmlStyle.RUBY_TYPE_CONTAINER);
+              break;
+            case TtmlNode.RUBY_BASE:
+            case TtmlNode.RUBY_BASE_CONTAINER:
+              style = createIfNull(style).setRubyType(TtmlStyle.RUBY_TYPE_BASE);
+              break;
+            case TtmlNode.RUBY_TEXT:
+            case TtmlNode.RUBY_TEXT_CONTAINER:
+              style = createIfNull(style).setRubyType(TtmlStyle.RUBY_TYPE_TEXT);
+              break;
+            case TtmlNode.RUBY_DELIMITER:
+              style = createIfNull(style).setRubyType(TtmlStyle.RUBY_TYPE_DELIMITER);
+              break;
+            default:
+              // ignore
+              break;
+          }
+          break;
+        case TtmlNode.ATTR_TTS_RUBY_POSITION:
+          switch (Util.toLowerInvariant(attributeValue)) {
+            case TtmlNode.RUBY_BEFORE:
+              style = createIfNull(style).setRubyPosition(RubySpan.POSITION_OVER);
+              break;
+            case TtmlNode.RUBY_AFTER:
+              style = createIfNull(style).setRubyPosition(RubySpan.POSITION_UNDER);
+              break;
+            default:
+              // ignore
+              break;
+          }
+          break;
         case TtmlNode.ATTR_TTS_TEXT_DECORATION:
           switch (Util.toLowerInvariant(attributeValue)) {
             case TtmlNode.LINETHROUGH:
@@ -563,11 +611,11 @@ public final class TtmlDecoder extends SimpleSubtitleDecoder {
     return style;
   }
 
-  private TtmlStyle createIfNull(@Nullable TtmlStyle style) {
+  private static TtmlStyle createIfNull(@Nullable TtmlStyle style) {
     return style == null ? new TtmlStyle() : style;
   }
 
-  private TtmlNode parseNode(
+  private static TtmlNode parseNode(
       XmlPullParser parser,
       @Nullable TtmlNode parent,
       Map<String, TtmlRegion> regionMap,
@@ -637,8 +685,9 @@ public final class TtmlDecoder extends SimpleSubtitleDecoder {
         endTime = parent.endTimeUs;
       }
     }
+
     return TtmlNode.buildNode(
-        parser.getName(), startTime, endTime, style, styleIds, regionId, imageId);
+        parser.getName(), startTime, endTime, style, styleIds, regionId, imageId, parent);
   }
 
   private static boolean isSupportedTag(String tag) {
