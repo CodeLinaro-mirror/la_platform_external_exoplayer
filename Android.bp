@@ -32,8 +32,9 @@ license {
     ],
 }
 
-java_library {
+android_library {
     name: "exoplayer2-extractor",
+    manifest: "tree/library/extractor/src/main/AndroidManifest.xml",
     srcs: [
         "tree/library/extractor/src/main/java/**/*.java",
         "tree/library/common/src/main/java/**/*.java",
