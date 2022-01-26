@@ -33,6 +33,20 @@ def run(command, check=True):
       text=True).stdout.strip())
 
 
+def confirm_deletion_or_exit(files_to_delete):
+  print("The following files will not be added to exoplayer/external: \n" +
+        files_to_delete)
+  while True:
+    print("Please confirm [Y/n] ")
+    choice = input().lower()
+    if choice in ["y", "yes", ""]:
+      return
+    elif choice in ["n", "no"]:
+      sys.exit("User rejected the list of .mk files to exclude from the tree.")
+    else:
+      print("Please select y or n.")
+
+
 logging.basicConfig(level=logging.INFO)
 
 parser = argparse.ArgumentParser(
@@ -40,19 +54,16 @@ parser = argparse.ArgumentParser(
     "directory, where <SHA> identifies the commit to download. This script "
     "also stages the changes for commit. Either --tag or --commit must be "
     "provided.")
-parser.add_argument(
+refGroup = parser.add_mutually_exclusive_group(required=True)
+refGroup.add_argument(
     "--tag", help="The tag that identifies the ExoPlayer commit to download.")
-parser.add_argument(
+refGroup.add_argument(
     "--commit", help="The commit SHA of the ExoPlayer version to download.")
 parser.add_argument(
     "--branch",
     help="The branch to create for the change.",
-    default="update-exoplayer")
+    default="download-exoplayer")
 args = parser.parse_args()
-
-if (args.tag is None) == (args.commit is None):
-  parser.print_help()
-  sys.exit("\nError: Either the tag or the commit must be provided.")
 
 cd_to_script_parent_directory()
 
@@ -61,14 +72,15 @@ if run(f"git rev-parse --verify --quiet {args.branch}", check=False):
   sys.exit(f"\nBranch {args.branch} already exists. Please delete, or change "
            "branch.")
 
-if run(f"repo start {args.branch}", check=False):
+if run(f"repo start {args.branch}"):
   sys.exit(f"\nFailed to repo start {args.branch}. Check you don't have "
            "uncommited changes in your current branch.")
 
 with tempfile.TemporaryDirectory() as tmpdir:
   logging.info(f"Created temporary directory {tmpdir}")
-  run(f"git clone {EXOPLAYER_SOURCE_REPO} {tmpdir}")
-  os.chdir(str(tmpdir))
+  run("git clone --no-checkout --filter=tree:0 "
+      f"{EXOPLAYER_SOURCE_REPO} {tmpdir}")
+  os.chdir(tmpdir)
 
   if args.tag:
     # Get the commit SHA associated to the tag.
@@ -81,8 +93,12 @@ with tempfile.TemporaryDirectory() as tmpdir:
 
   # Copy all files in the tree into tree_<SHA>.
   shutil.rmtree(".git/", ignore_errors=True)
+
   # Remove all Android.mk files in the exoplayer tree to avoid licensing issues.
-  run("find . -name Android.mk -delete")
+  mk_files_to_remove = run("find . -name \"*.mk\"")
+  confirm_deletion_or_exit(mk_files_to_remove)
+  run("find . -name \"*.mk\" -delete")
+
   cd_to_script_parent_directory()
   new_tree_location = f"tree_{commit_sha}"
   run(f"mv {tmpdir} {new_tree_location}")
