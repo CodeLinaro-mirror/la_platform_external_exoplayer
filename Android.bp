@@ -71,7 +71,6 @@ android_library {
     manifest: "tree_8e57d3715f9092d5ec54ebe2e538f34bfcc34479/library/ui/src/main/AndroidManifest.xml",
     jarjar_rules: "annotation-stripping-jarjar-rules.txt",
     visibility: ["//packages/providers/MediaProvider:__subpackages__"],
-    notice: "LICENSE"
 }
 
 // Needed because exoplayer-mediaprovider-ui depends on a resource from core, using the core package
@@ -110,7 +109,6 @@ android_library {
     manifest: "tree_8e57d3715f9092d5ec54ebe2e538f34bfcc34479/library/core/src/main/AndroidManifest.xml",
     jarjar_rules: "annotation-stripping-jarjar-rules.txt",
     visibility: ["//visibility:private"],
-    notice: "LICENSE"
 }
 
 
@@ -142,7 +140,6 @@ android_library {
     ],
     jarjar_rules: "annotation-stripping-jarjar-rules.txt",
     visibility: ["//cts/tests/tests/media/muxer:__subpackages__"],
-    notice: "LICENSE",
 }
 
 // Used by MediaParser to implement media container files parsing.
@@ -172,7 +169,6 @@ java_library {
         "//frameworks/base:__subpackages__",
         "//packages/modules/Media/apex/framework",
     ],
-    notice: "LICENSE",
 }
 
 android_library {
@@ -207,7 +203,6 @@ android_library {
     jarjar_rules: "annotation-stripping-jarjar-rules.txt",
     visibility: ["//vendor:__subpackages__"], // Visibility for vendor's subdirs is not allowed, so
                                               // we can limit visibility to vendor, at most.
-    notice: "LICENSE",
 }
 
 // Exposes util classes for testing MediaParser.
@@ -240,7 +235,6 @@ android_library {
     ],
     jarjar_rules: "annotation-stripping-jarjar-rules.txt",
     visibility: ["//cts/tests/tests/mediaparser:__subpackages__"],
-    notice: "LICENSE",
 }
 
 // Exposes the assets for testing MediaParser.
